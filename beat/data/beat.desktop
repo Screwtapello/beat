@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=beat
+Comment=Patcher
+Exec=beat
+Icon=beat
+Terminal=false
+Type=Application
+Categories=Accessory;
