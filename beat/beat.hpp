@@ -29,6 +29,7 @@ protected:
   HorizontalLayout targetLayout{this, Size{~0, 0}};
     Button targetSelect{&targetLayout, Size{80_sx, 0}};
     Label targetLabel{&targetLayout, Size{~0, 0}};
+  CheckLabel overwriteOption{this, Size{~0, 0}};
   Label applyHeader{this, Size{~0, 0}};
   HorizontalLayout applyLayout{this, Size{~0, 0}};
     Button applyButton{&applyLayout, Size{80_sx, 0}};
