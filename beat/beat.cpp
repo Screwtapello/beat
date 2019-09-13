@@ -2,7 +2,7 @@
 
 namespace Information {
   static const string Name        = "beat";
-  static const string Version     = "v0.1";
+  static const string Version     = "v1";
   static const string Author      = "byuu";
   static const string License     = "GPLv3";
   static const string Website     = "https://byuu.org";
@@ -16,6 +16,10 @@ string defaultPath = Path::desktop();
 auto displayName(string_view name) -> string {
   if(!name) return "(no file selected)";
   return {Location::file(name), " (", Location::path(name).trimRight("/", 1L), ")"};
+}
+
+auto showInformation(string_view text) -> void {
+  MessageDialog().setAlignment(programWindow).setText(text).information();
 }
 
 auto showError(string_view text) -> void {
@@ -121,6 +125,15 @@ auto ApplyPatch::synchronize() -> void {
 }
 
 auto ApplyPatch::apply() -> void {
+  auto inputSize = file::size(inputLocation);
+  auto sourceSize = file::size(sourceLocation);
+
+  if(inputSize > 64_MiB || sourceSize > 64_MiB) showInformation({
+    "Because this is a large patch, it will take a few seconds to apply.\n",
+    Information::Name, " will be unresponsive until patching has completed.\n",
+    "Please be patient."
+  });
+
   programWindow.setTitle({"Applying Patch - ", Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(false);
 
@@ -150,7 +163,7 @@ auto ApplyPatch::apply() -> void {
     string location = overwriteOption.checked() ? sourceLocation : targetLocation;
     file::write(location, *target);
     if(askQuestion({
-      "Patch applied.\n"
+      "Patch successfully applied.\n"
       "Continue performing another action, or quit the program?"
     }, {"Continue", "Quit"}) != "Continue") {
       return Application::quit();
@@ -159,6 +172,8 @@ auto ApplyPatch::apply() -> void {
 
   programWindow.setTitle({Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(true);
+  Application::processEvents();
+
   inputLocation = {};
   sourceLocation = {};
   targetLocation = {};
@@ -261,17 +276,36 @@ auto CreatePatch::synchronize() -> void {
 }
 
 auto CreatePatch::create() -> void {
+  auto sourceSize = file::size(sourceLocation);
+  auto targetSize = file::size(targetLocation);
+  if(sourceSize >= 2_GiB || targetSize >= 2_GiB) return showError({
+    "Sorry, beat cannot currently create patches against files larger than 2 gigabytes.\n"
+    "Hopefully this support can be added in a future release."
+  });
+  auto minuteEstimate = round((sourceSize + targetSize) / 500_KiB / 60.0 * 10.0) / 10.0;
+  auto memoryEstimate = round((sourceSize + targetSize) / 1_MiB * 17.0 * 10.0) / 10.0;
+  if(askQuestion({
+    "It will take approximately ", minuteEstimate, " minute(s) to create this patch.\n",
+    "It will require approximately ", memoryEstimate, " megabyte(s) of RAM available to create this patch.\n",
+    Information::Name, " will not be responsive while the patch is being created.\n",
+    "Would you like to continue? Please be patient if so."
+  }, {"Yes", "No"}) != "Yes") {
+    return;
+  }
+
   programWindow.setTitle({"Creating Patch - ", Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(false);
+  Application::processEvents();
+
   auto source = file::read(sourceLocation);
   auto target = file::read(targetLocation);
   auto output = Beat::Single::create(source, target);
   file::write(outputLocation, output);
 
-  if(MessageDialog().setAlignment(programWindow).setText(
+  if(askQuestion({
     "Patch created successfully.\n"
     "Continue performing another action, or quit the program?"
-  ).question({"Continue", "Quit"}) != "Continue") {
+  }, {"Continue", "Quit"}) != "Continue") {
     return Application::quit();
   }
 
