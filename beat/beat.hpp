@@ -12,24 +12,28 @@ struct ApplyPatch : VerticalLayout {
   auto apply() -> void;
 
 protected:
-  string inputLocation;
-  string sourceLocation;
-  string targetLocation;
+  string patchLocation;
+  string originalLocation;
+  string modifiedLocation;
 
   Label header{this, Size{~0, 0}};
-  Label inputHeader{this, Size{~0, 0}};
-  HorizontalLayout inputLayout{this, Size{~0, 0}};
-    Button inputSelect{&inputLayout, Size{80_sx, 0}};
-    Label inputLabel{&inputLayout, Size{~0, 0}};
-  Label sourceHeader{this, Size{~0, 0}};
-  HorizontalLayout sourceLayout{this, Size{~0, 0}};
-    Button sourceSelect{&sourceLayout, Size{80_sx, 0}};
-    Label sourceLabel{&sourceLayout, Size{~0, 0}};
-  Label targetHeader{this, Size{~0, 0}};
-  HorizontalLayout targetLayout{this, Size{~0, 0}};
-    Button targetSelect{&targetLayout, Size{80_sx, 0}};
-    Label targetLabel{&targetLayout, Size{~0, 0}};
+
+  Label patchHeader{this, Size{~0, 0}};
+  HorizontalLayout patchLayout{this, Size{~0, 0}};
+    Button patchSelect{&patchLayout, Size{80_sx, 0}};
+    Label patchLabel{&patchLayout, Size{~0, 0}};
+
+  Label originalHeader{this, Size{~0, 0}};
+  HorizontalLayout originalLayout{this, Size{~0, 0}};
+    Button originalSelect{&originalLayout, Size{80_sx, 0}};
+    Label originalLabel{&originalLayout, Size{~0, 0}};
+
+  Label modifiedHeader{this, Size{~0, 0}};
+  HorizontalLayout modifiedLayout{this, Size{~0, 0}};
+    Button modifiedSelect{&modifiedLayout, Size{80_sx, 0}};
+    Label modifiedLabel{&modifiedLayout, Size{~0, 0}};
   CheckLabel overwriteOption{this, Size{~0, 0}};
+
   Label applyHeader{this, Size{~0, 0}};
   HorizontalLayout applyLayout{this, Size{~0, 0}};
     Button applyButton{&applyLayout, Size{80_sx, 0}};
@@ -48,23 +52,27 @@ struct CreatePatch : VerticalLayout {
   auto create() -> void;
 
 protected:
-  string sourceLocation;
-  string targetLocation;
-  string outputLocation;
+  string patchLocation;
+  string originalLocation;
+  string modifiedLocation;
 
   Label header{this, Size{~0, 0}};
-  Label sourceHeader{this, Size{~0, 0}};
-  HorizontalLayout sourceLayout{this, Size{~0, 0}};
-    Button sourceSelect{&sourceLayout, Size{80_sx, 0}};
-    Label sourceLabel{&sourceLayout, Size{~0, 0}};
-  Label targetHeader{this, Size{~0, 0}};
-  HorizontalLayout targetLayout{this, Size{~0, 0}};
-    Button targetSelect{&targetLayout, Size{80_sx, 0}};
-    Label targetLabel{&targetLayout, Size{~0, 0}};
-  Label outputHeader{this, Size{~0, 0}};
-  HorizontalLayout outputLayout{this, Size{~0, 0}};
-    Button outputSelect{&outputLayout, Size{80_sx, 0}};
-    Label outputLabel{&outputLayout, Size{~0, 0}};
+
+  Label patchHeader{this, Size{~0, 0}};
+  HorizontalLayout patchLayout{this, Size{~0, 0}};
+    Button patchSelect{&patchLayout, Size{80_sx, 0}};
+    Label patchLabel{&patchLayout, Size{~0, 0}};
+
+  Label originalHeader{this, Size{~0, 0}};
+  HorizontalLayout originalLayout{this, Size{~0, 0}};
+    Button originalSelect{&originalLayout, Size{80_sx, 0}};
+    Label originalLabel{&originalLayout, Size{~0, 0}};
+
+  Label modifiedHeader{this, Size{~0, 0}};
+  HorizontalLayout modifiedLayout{this, Size{~0, 0}};
+    Button modifiedSelect{&modifiedLayout, Size{80_sx, 0}};
+    Label modifiedLabel{&modifiedLayout, Size{~0, 0}};
+
   Label createHeader{this, Size{~0, 0}};
   HorizontalLayout createLayout{this, Size{~0, 0}};
     Button createButton{&createLayout, Size{80_sx, 0}};

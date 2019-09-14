@@ -2,7 +2,7 @@
 
 namespace Information {
   static const string Name        = "beat";
-  static const string Version     = "v1";
+  static const string Version     = "v1.1";
   static const string Author      = "byuu";
   static const string License     = "GPLv3";
   static const string Website     = "https://byuu.org";
@@ -19,15 +19,15 @@ auto displayName(string_view name) -> string {
 }
 
 auto showInformation(string_view text) -> void {
-  MessageDialog().setAlignment(programWindow).setText(text).information();
+  MessageDialog().setTitle("beat").setAlignment(programWindow).setText(text).information();
 }
 
 auto showError(string_view text) -> void {
-  MessageDialog().setAlignment(programWindow).setText(text).error();
+  MessageDialog().setTitle("beat").setAlignment(programWindow).setText(text).error();
 }
 
 auto askQuestion(string_view text, vector<string> questions) -> string {
-  return MessageDialog().setAlignment(programWindow).setText(text).question(questions);
+  return MessageDialog().setTitle("beat").setAlignment(programWindow).setText(text).question(questions);
 }
 
 ApplyPatch::ApplyPatch() {
@@ -36,8 +36,8 @@ ApplyPatch::ApplyPatch() {
 
   header.setText("Apply BPS Patch").setFont(Font().setSize(16).setBold());
 
-  inputHeader.setText("Step 1: choose the patch file to apply:");
-  inputSelect.setText("Select").onActivate([&] {
+  patchHeader.setText("Step 1: choose the patch file to apply:");
+  patchSelect.setText("Select").onActivate([&] {
     string location = BrowserDialog()
     .setFilters({{"BPS patches|*.bps"}, {"All files|*"}})
     .setPath(defaultPath)
@@ -45,60 +45,60 @@ ApplyPatch::ApplyPatch() {
     .setAlignment(programWindow)
     .openFile();
     if(location) defaultPath = Location::path(location);
-    if(location && location == sourceLocation) {
+    if(location && location == originalLocation) {
       showError("This file was already chosen as the original file.");
       location = {};
     }
-    if(location && location == targetLocation) {
+    if(location && location == modifiedLocation) {
       showError("This file was already chosen as the modified file.");
       location = {};
     }
-    inputLocation = location;
+    patchLocation = location;
     synchronize();
   });
-  inputLabel.setFont(Font().setBold());
+  patchLabel.setFont(Font().setBold());
 
-  sourceHeader.setText("Step 2: choose the original file to apply the patch to:");
-  sourceSelect.setText("Select").onActivate([&] {
+  originalHeader.setText("Step 2: choose the original file to apply the patch to:");
+  originalSelect.setText("Select").onActivate([&] {
     string location = BrowserDialog()
     .setPath(defaultPath)
     .setTitle("Select original file")
     .setAlignment(programWindow)
     .openFile();
     if(location) defaultPath = Location::path(location);
-    if(location && location == inputLocation) {
+    if(location && location == patchLocation) {
       showError("This file was already chosen as the patch file.");
       location = {};
     }
-    if(location && location == targetLocation) {
+    if(location && location == modifiedLocation) {
       showError("This file was already chosen as the modified file.");
       location = {};
     }
-    sourceLocation = location;
+    originalLocation = location;
     synchronize();
   });
-  sourceLabel.setFont(Font().setBold());
+  originalLabel.setFont(Font().setBold());
 
-  targetHeader.setText("Step 3: choose where to write the modified file to:");
-  targetSelect.setText("Select").onActivate([&] {
+  modifiedHeader.setText("Step 3: choose where to write the modified file to:");
+  modifiedSelect.setText("Select").onActivate([&] {
     string location = BrowserDialog()
     .setPath(defaultPath)
     .setTitle("Select modified file")
     .setAlignment(programWindow)
     .saveFile();
     if(location) defaultPath = Location::path(location);
-    if(location && location == inputLocation) {
+    if(location && location == patchLocation) {
       showError("This file was already chosen as the patch file.");
       location = {};
     }
-    if(location && location == sourceLocation) {
-      showError("This file was already chosen as the original file.");
+    if(location && location == originalLocation) {
       location = {};
+      overwriteOption.setChecked();
     }
-    targetLocation = location;
+    modifiedLocation = location;
     synchronize();
   });
-  targetLabel.setFont(Font().setBold());
+  modifiedLabel.setFont(Font().setBold());
 
   overwriteOption.setText("Overwrite the original file (irreversible)").onToggle([&] {
     synchronize();
@@ -111,24 +111,24 @@ ApplyPatch::ApplyPatch() {
 }
 
 auto ApplyPatch::synchronize() -> void {
-  inputLabel.setText(displayName(inputLocation));
-  sourceLabel.setText(displayName(sourceLocation));
+  patchLabel.setText(displayName(patchLocation));
+  originalLabel.setText(displayName(originalLocation));
   if(!overwriteOption.checked()) {
-    targetSelect.setEnabled(true);
-    targetLabel.setText(displayName(targetLocation));
+    modifiedSelect.setEnabled(true);
+    modifiedLabel.setText(displayName(modifiedLocation));
   } else {
-    targetSelect.setEnabled(false);
-    targetLabel.setText(displayName(sourceLocation));
+    modifiedSelect.setEnabled(false);
+    modifiedLabel.setText(displayName(originalLocation));
   }
 
-  applyButton.setEnabled(inputLocation && sourceLocation && (targetLocation || overwriteOption.checked()));
+  applyButton.setEnabled(patchLocation && originalLocation && (modifiedLocation || overwriteOption.checked()));
 }
 
 auto ApplyPatch::apply() -> void {
-  auto inputSize = file::size(inputLocation);
-  auto sourceSize = file::size(sourceLocation);
+  auto patchSize = file::size(patchLocation);
+  auto originalSize = file::size(originalLocation);
 
-  if(inputSize > 64_MiB || sourceSize > 64_MiB) showInformation({
+  if(patchSize > 64_MiB || originalSize > 64_MiB) showInformation({
     "Because this is a large patch, it will take a few seconds to apply.\n",
     Information::Name, " will be unresponsive until patching has completed.\n",
     "Please be patient."
@@ -136,13 +136,14 @@ auto ApplyPatch::apply() -> void {
 
   programWindow.setTitle({"Applying Patch - ", Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(false);
+  Application::processEvents();
 
   string manifest;
   string result;
 
-  auto input = file::read(inputLocation);
-  auto source = file::read(sourceLocation);
-  auto target = Beat::Single::apply(source, input, manifest, result);
+  auto patchData = file::read(patchLocation);
+  auto originalData = file::read(originalLocation);
+  auto modifiedData = Beat::Single::apply(originalData, patchData, manifest, result);
 
   if(result.beginsWith("error: ")) {
     result.trimLeft("error: ", 1L);
@@ -155,13 +156,13 @@ auto ApplyPatch::apply() -> void {
       "Patch applied, but with the warning: ", result, ".\n",
       "The output is likely to be invalid. Keep the result anyway?"
     }, {"Keep", "Discard"}) != "Keep") {
-      target.reset();
+      modifiedData.reset();
     }
   }
 
-  if(target) {
-    string location = overwriteOption.checked() ? sourceLocation : targetLocation;
-    file::write(location, *target);
+  if(modifiedData) {
+    string location = overwriteOption.checked() ? originalLocation : modifiedLocation;
+    file::write(location, *modifiedData);
     if(askQuestion({
       "Patch successfully applied.\n"
       "Continue performing another action, or quit the program?"
@@ -172,11 +173,9 @@ auto ApplyPatch::apply() -> void {
 
   programWindow.setTitle({Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(true);
-  Application::processEvents();
-
-  inputLocation = {};
-  sourceLocation = {};
-  targetLocation = {};
+  patchLocation = {};
+  originalLocation = {};
+  modifiedLocation = {};
   overwriteOption.setChecked(false);
   synchronize();
 }
@@ -194,52 +193,11 @@ CreatePatch::CreatePatch() {
 
   header.setText("Create BPS Patch").setFont(Font().setSize(16).setBold());
 
-  sourceHeader.setText("Step 1: choose the original file to create a patch from:");
-  sourceSelect.setText("Select").onActivate([&] {
-    string location = BrowserDialog()
-    .setPath(defaultPath)
-    .setTitle("Select original file")
-    .setAlignment(programWindow)
-    .openFile();
-    if(location) defaultPath = Location::path(location);
-    if(location && location == targetLocation) {
-      showError("This file was already chosen as the modified file.");
-      location = {};
-    }
-    if(location && location == outputLocation) {
-      showError("This file was already chosen as the patch file.");
-      location = {};
-    }
-    sourceLocation = location;
-    synchronize();
-  });
-  sourceLabel.setFont(Font().setBold());
-
-  targetHeader.setText("Step 2: choose the modified file to create a patch to:");
-  targetSelect.setText("Select").onActivate([&] {
-    string location = BrowserDialog()
-    .setPath(defaultPath)
-    .setTitle("Select modified file")
-    .setAlignment(programWindow)
-    .openFile();
-    if(location) defaultPath = Location::path(location);
-    if(location && location == sourceLocation) {
-      showError("This file was already chosen as the original file.");
-      location = {};
-    }
-    if(location && location == outputLocation) {
-      showError("This file was already chosen as the patch file.");
-      location = {};
-    }
-    targetLocation = location;
-    synchronize();
-  });
-  targetLabel.setFont(Font().setBold());
-
-  outputHeader.setText("Step 3: choose a location to save the patch file to:");
-  outputSelect.setText("Select").onActivate([&] {
+  patchHeader.setText("Step 1: choose a location to save the patch file to:");
+  patchSelect.setText("Select").onActivate([&] {
     string location = BrowserDialog()
     .setFilters({{"BPS patches|*.bps"}, {"All files|*"}})
+    .setName("output.bps")
     .setPath(defaultPath)
     .setTitle("Select patch file")
     .setAlignment(programWindow)
@@ -248,18 +206,60 @@ CreatePatch::CreatePatch() {
     if(location && !location.endsWith(".bps")) {
       location.append(".bps");
     }
-    if(location && location == sourceLocation) {
+    if(location && location == originalLocation) {
       showError("This file was already chosen as the original file.");
       location = {};
     }
-    if(location && location == targetLocation) {
+    if(location && location == modifiedLocation) {
       showError("This file was already chosen as the modified file.");
       location = {};
     }
-    outputLocation = location;
+    patchLocation = location;
     synchronize();
   });
-  outputLabel.setFont(Font().setBold());
+  patchLabel.setFont(Font().setBold());
+
+  originalHeader.setText("Step 2: choose the original file to create a patch from:");
+  originalSelect.setText("Select").onActivate([&] {
+    string location = BrowserDialog()
+    .setPath(defaultPath)
+    .setTitle("Select original file")
+    .setAlignment(programWindow)
+    .openFile();
+    if(location) defaultPath = Location::path(location);
+    if(location && location == patchLocation) {
+      showError("This file was already chosen as the patch file.");
+      location = {};
+    }
+    if(location && location == modifiedLocation) {
+      showError("This file was already chosen as the modified file.");
+      location = {};
+    }
+    originalLocation = location;
+    synchronize();
+  });
+  originalLabel.setFont(Font().setBold());
+
+  modifiedHeader.setText("Step 3: choose the modified file to create a patch to:");
+  modifiedSelect.setText("Select").onActivate([&] {
+    string location = BrowserDialog()
+    .setPath(defaultPath)
+    .setTitle("Select modified file")
+    .setAlignment(programWindow)
+    .openFile();
+    if(location) defaultPath = Location::path(location);
+    if(location && location == patchLocation) {
+      showError("This file was already chosen as the patch file.");
+      location = {};
+    }
+    if(location && location == originalLocation) {
+      showError("This file was already chosen as the original file.");
+      location = {};
+    }
+    modifiedLocation = location;
+    synchronize();
+  });
+  modifiedLabel.setFont(Font().setBold());
 
   createHeader.setText("Step 4: create the patch:");
   createButton.setText("Create").onActivate([&] { create(); });
@@ -268,22 +268,22 @@ CreatePatch::CreatePatch() {
 }
 
 auto CreatePatch::synchronize() -> void {
-  sourceLabel.setText(displayName(sourceLocation));
-  targetLabel.setText(displayName(targetLocation));
-  outputLabel.setText(displayName(outputLocation));
+  patchLabel.setText(displayName(patchLocation));
+  originalLabel.setText(displayName(originalLocation));
+  modifiedLabel.setText(displayName(modifiedLocation));
 
-  createButton.setEnabled(sourceLocation && targetLocation && outputLocation);
+  createButton.setEnabled(patchLocation && originalLocation && modifiedLocation);
 }
 
 auto CreatePatch::create() -> void {
-  auto sourceSize = file::size(sourceLocation);
-  auto targetSize = file::size(targetLocation);
-  if(sourceSize >= 2_GiB || targetSize >= 2_GiB) return showError({
+  auto originalSize = file::size(originalLocation);
+  auto modifiedSize = file::size(modifiedLocation);
+  if(originalSize >= 2_GiB || modifiedSize >= 2_GiB) return showError({
     "Sorry, beat cannot currently create patches against files larger than 2 gigabytes.\n"
     "Hopefully this support can be added in a future release."
   });
-  auto minuteEstimate = round((sourceSize + targetSize) / 500_KiB / 60.0 * 10.0) / 10.0;
-  auto memoryEstimate = round((sourceSize + targetSize) / 1_MiB * 17.0 * 10.0) / 10.0;
+  auto minuteEstimate = round((originalSize + modifiedSize) / 500_KiB / 60.0 * 10.0) / 10.0;
+  auto memoryEstimate = round((originalSize + modifiedSize) / 1_MiB * 17.0 * 10.0) / 10.0;
   if(askQuestion({
     "It will take approximately ", minuteEstimate, " minute(s) to create this patch.\n",
     "It will require approximately ", memoryEstimate, " megabyte(s) of RAM available to create this patch.\n",
@@ -297,10 +297,10 @@ auto CreatePatch::create() -> void {
   programWindow.layout.setEnabled(false);
   Application::processEvents();
 
-  auto source = file::read(sourceLocation);
-  auto target = file::read(targetLocation);
-  auto output = Beat::Single::create(source, target);
-  file::write(outputLocation, output);
+  auto originalData = file::read(originalLocation);
+  auto modifiedData = file::read(modifiedLocation);
+  auto patchData = Beat::Single::create(originalData, modifiedData);
+  file::write(patchLocation, patchData);
 
   if(askQuestion({
     "Patch created successfully.\n"
@@ -311,9 +311,9 @@ auto CreatePatch::create() -> void {
 
   programWindow.setTitle({Information::Name, " ", Information::Version});
   programWindow.layout.setEnabled(true);
-  sourceLocation = {};
-  targetLocation = {};
-  outputLocation = {};
+  patchLocation = {};
+  originalLocation = {};
+  modifiedLocation = {};
   synchronize();
 }
 
@@ -322,7 +322,14 @@ Home::Home() {
   setVisible(false);
 
   header.setText("beat").setFont(Font().setSize(16).setBold());
-  subheader.setText("Please choose an action from the left-hand panel.");
+  subheader.setText({
+    "GUI usage:\n"
+    "  Choose an action from the left-hand panel.\n"
+    "\n"
+    "Command-line usage:\n"
+    "  beat -apply:bps [-unsafe] {patch.bps} {original.file} [{modified.file}]\n"
+    "  beat -create:bps {patch.bps} {original.file} {modified.file}"
+  });
   aboutButton.setText("About").onActivate([&] {
     AboutDialog()
     .setName(Information::Name)
@@ -344,6 +351,7 @@ ProgramWindow::ProgramWindow() {
   panelList.append(ListViewItem().setText("Apply Patch"));
 //panelList.append(ListViewItem().setText("Apply Patches"));
   panelList.append(ListViewItem().setText("Create Patch"));
+  panelList.append(ListViewItem().setText("Usage Instructions"));
   panelList.item(0).setSelected();
   panelList.doChange();
 
@@ -367,6 +375,7 @@ auto ProgramWindow::panelChange() -> void {
     if(item.offset() == 0) applyPatch.setVisible();
   //if(item.offset() == 1) applyPatches.setVisible();
     if(item.offset() == 1) createPatch.setVisible();
+    if(item.offset() == 2) home.setVisible();
   } else {
     home.setVisible();
   }
@@ -375,6 +384,57 @@ auto ProgramWindow::panelChange() -> void {
 
 #include <nall/main.hpp>
 auto nall::main(Arguments arguments) -> void {
+  if(arguments.take("-apply:bps")) {
+    bool unsafe = arguments.take("-unsafe");
+
+    string patchName = arguments.take();
+    if(!file::exists(patchName)) return print("error: patch filename does not exist\n");
+    if(!patchName.endsWith(".bps")) return print("error: patch filename must end with .bps\n");
+
+    string originalName = arguments.take();
+    if(!file::exists(originalName)) return print("error: original filename does not exist\n");
+    if(originalName.endsWith(".bps")) return print("error: original filename must not end with .bps\n");
+
+    string modifiedName = arguments.take();
+    if(!modifiedName) modifiedName = originalName;
+    if(modifiedName.endsWith(".bps")) return print("error: modified filename must not end with .bps\n");
+
+    auto patchData = file::read(patchName);
+    auto originalData = file::read(originalName);
+    string manifest;
+    string result;
+    auto modifiedData = Beat::Single::apply(originalData, patchData, manifest, result);
+
+    if(result && !unsafe) return print(result, "\n");
+    if(result) print(result, "\n");
+    if(!modifiedData) return;  //should never occur
+
+    file::write(modifiedName, *modifiedData);
+    return print("patch applied successfully\n");
+  }
+
+  if(arguments.take("-create:bps")) {
+    string patchName = arguments.take();
+    if(!patchName.endsWith(".bps")) return print("error: patch filename must end with .bps\n");
+
+    string originalName = arguments.take();
+    if(!file::exists(originalName)) return print("error: original filename does not exist\n");
+    if(originalName.endsWith(".bps")) return print("error: original filename must not end with .bps\n");
+
+    string modifiedName = arguments.take();
+    if(!file::exists(modifiedName)) return print("error: modified filename does not exist\n");
+    if(modifiedName.endsWith(".bps")) return print("error: modified filename must not end with .bps\n");
+
+    if(originalName == modifiedName) return print("error: original and modified filenames cannot be the same\n");
+
+    auto originalData = file::read(originalName);
+    auto modifiedData = file::read(modifiedName);
+    auto patchData = Beat::Single::create(originalData, modifiedData);
+
+    file::write(patchName, patchData);
+    return print("patch created successfully\n");
+  }
+
   Application::setName("beat");
   Instances::programWindow.construct();
   Application::run();
