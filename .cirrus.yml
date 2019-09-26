@@ -1,0 +1,72 @@
+linux-x86_64-binaries_task:
+    container:
+        image: ubuntu:latest
+
+    setup_script:
+        - apt-get update && apt-get -y install build-essential libgtk2.0-dev libpulse-dev mesa-common-dev libgtksourceview2.0-dev libcairo2-dev libsdl2-dev libxv-dev libao-dev libopenal-dev libudev-dev zip
+
+    compile_script:
+        - make -C beat local=false
+
+    package_script:
+        - mkdir beat-nightly
+        - cp -a beat/out/beat beat-nightly/beat
+        - cp -a GPLv3.txt beat-nightly
+        - zip -r beat-nightly.zip beat-nightly
+
+    beat-nightly_artifacts:
+        path: "beat-nightly.zip"
+
+freebsd-x86_64-binaries_task:
+    freebsd_instance:
+        image: freebsd-12-0-release-amd64
+
+    setup_script:
+        - pkg install --yes gmake gdb gcc8 pkgconf sdl2 openal-soft gtksourceview2 libXv zip
+
+    compile_script:
+        - gmake -C beat local=false
+
+    package_script:
+        - mkdir beat-nightly
+        - cp -a beat/out/beat beat-nightly/beat
+        - cp -a GPLv3.txt beat-nightly
+        - zip -r beat-nightly.zip beat-nightly
+
+    beat-nightly_artifacts:
+        path: "beat-nightly.zip"
+
+windows-x86_64-binaries_task:
+    container:
+        image: ubuntu:latest
+
+    setup_script:
+        - apt-get update && apt-get -y install build-essential mingw-w64 zip
+
+    compile_script:
+        - make -C beat local=false platform=windows compiler="x86_64-w64-mingw32-g++" windres="x86_64-w64-mingw32-windres"
+
+    package_script:
+        - mkdir beat-nightly
+        - cp -a beat/out/beat beat-nightly/beat.exe
+        - cp -a GPLv3.txt beat-nightly
+        - zip -r beat-nightly.zip beat-nightly
+
+    beat-nightly_artifacts:
+        path: "beat-nightly.zip"
+
+macOS-x86_64-binaries_task:
+    osx_instance:
+        image: mojave-base
+
+    compile_script:
+        - make -C beat local=false
+
+    package_script:
+        - mkdir beat-nightly
+        - cp -a beat/out/beat.app beat-nightly
+        - cp -a GPLv3.txt beat-nightly
+        - zip -r beat-nightly.zip beat-nightly
+
+    beat-nightly_artifacts:
+        path: "beat-nightly.zip"
